@@ -5,9 +5,8 @@ Performs fast similarity search using FAISS index and returns relevant video seg
 
 import gc
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 import torch
-import numpy as np
 from collections import Counter
 
 from src.video_search.utils import Config, setup_logging, format_timestamp, clean_text
@@ -93,6 +92,9 @@ class VideoSearchEngine:
     def _expand_query(self, query: str) -> List[str]:
         """
         Expand query with synonyms and related terms for better semantic coverage.
+        Note: This is a simple implementation of query expansion.
+
+        This step ensures that different phrasings of the same intent can still retrieve relevant video segments.
 
         Args:
             query: Original query string
@@ -140,6 +142,8 @@ class VideoSearchEngine:
     def _calculate_lexical_similarity(self, query: str, segment_text: str) -> float:
         """
         Calculate lexical similarity using word overlap and TF-IDF-like scoring.
+        Note: This is a simple implementation of lexical similarity.
+        This step ensures that the search results are relevant to the query.
 
         Args:
             query: Query string

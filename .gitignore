@@ -5,5 +5,7 @@ __pycache__
 .DS_Store
 temp
 logs
+venv
 
+# data
 data/

@@ -8,7 +8,7 @@ import faiss
 from flask import Flask, render_template_string, request, jsonify
 from flask_cors import CORS
 import argparse
-from typing import List, Dict, Any
+from typing import Optional
 
 # Disable multiprocessing warnings
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -49,6 +49,7 @@ HTML_TEMPLATE = """
             display: flex;
             gap: 10px;
             margin-bottom: 30px;
+            flex-wrap: wrap;
         }
         input[type="text"] {
             flex: 1;
@@ -56,6 +57,14 @@ HTML_TEMPLATE = """
             border: 2px solid #ddd;
             border-radius: 5px;
             font-size: 16px;
+            min-width: 200px;
+        }
+        select {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            min-width: 200px;
         }
         button {
             padding: 12px 24px;
@@ -137,11 +146,43 @@ HTML_TEMPLATE = """
         .sample-query:hover {
             background: #d1e7dd;
         }
+        .search-options {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+        }
+        .search-options h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .option-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .option-group label {
+            margin-right: 10px;
+            min-width: 100px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🎥 Python Tutorial Video Search</h1>
+
+        <div class="search-options">
+            <h3>Search Options</h3>
+            <div class="option-group">
+                <label for="videoSelect">Select Video:</label>
+                <select id="videoSelect">
+                    <option value="">All Videos</option>
+                    <!-- Videos will be loaded here -->
+                </select>
+            </div>
+        </div>
 
         <div class="search-box">
             <input type="text" id="queryInput" placeholder="Search for Python concepts..." />
@@ -164,14 +205,42 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
+        // Load video list when page loads
+        document.addEventListener('DOMContentLoaded', loadVideoList);
+
         function searchSample(query) {
             document.getElementById('queryInput').value = query;
             performSearch();
         }
 
+        async function loadVideoList() {
+            try {
+                const response = await fetch('/videos');
+                const data = await response.json();
+
+                if (data.success) {
+                    const videoSelect = document.getElementById('videoSelect');
+
+                    // Add all videos to the dropdown
+                    data.videos.forEach(video => {
+                        const option = document.createElement('option');
+                        option.value = video.video_filename;
+                        option.textContent = video.video_filename;
+                        videoSelect.appendChild(option);
+                    });
+                } else {
+                    console.error('Failed to load videos:', data.error);
+                }
+            } catch (error) {
+                console.error('Error loading videos:', error);
+            }
+        }
+
         async function performSearch() {
             const query = document.getElementById('queryInput').value.trim();
             if (!query) return;
+
+            const videoFilename = document.getElementById('videoSelect').value;
 
             document.getElementById('results').innerHTML = '<div class="loading">Searching...</div>';
 
@@ -181,13 +250,16 @@ HTML_TEMPLATE = """
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ query: query })
+                    body: JSON.stringify({
+                        query: query,
+                        video_filename: videoFilename || null
+                    })
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
-                    displayResults(data.results, query);
+                    displayResults(data.results, query, videoFilename);
                 } else {
                     document.getElementById('results').innerHTML = `<div class="error">Error: ${data.error}</div>`;
                 }
@@ -196,7 +268,7 @@ HTML_TEMPLATE = """
             }
         }
 
-        function displayResults(results, query) {
+        function displayResults(results, query, videoFilename) {
             const resultsDiv = document.getElementById('results');
 
             if (results.length === 0) {
@@ -204,7 +276,13 @@ HTML_TEMPLATE = """
                 return;
             }
 
-            let html = `<h2>Found ${results.length} results for "${query}":</h2>`;
+            let title = `<h2>Found ${results.length} results for "${query}"`;
+            if (videoFilename) {
+                title += ` in "${videoFilename}"`;
+            }
+            title += `:</h2>`;
+
+            let html = title;
 
             results.forEach(result => {
                 html += `
@@ -261,12 +339,17 @@ def format_timestamp(seconds):
     return f"{minutes:02d}:{seconds:02d}"
 
 
-def search_with_precomputed(query: str, top_k: int = 5):
+def search_with_precomputed(
+    query: str, video_filename: Optional[str] = None, top_k: int = 5
+):
     """Search using pre-computed embeddings and keyword matching."""
     global embeddings, segments, index
 
     # Load data if not already loaded
     load_data()
+
+    if segments is None:
+        return []
 
     # Simple keyword-based search as fallback
     # This avoids the segmentation fault by not using sentence transformers
@@ -276,6 +359,10 @@ def search_with_precomputed(query: str, top_k: int = 5):
 
     # Score each segment based on keyword matches
     for i, segment in enumerate(segments):
+        # Skip if not in the selected video
+        if video_filename and segment["video_filename"] != video_filename:
+            continue
+
         text = segment["text"].lower()
         score = 0
 
@@ -307,6 +394,41 @@ def search_with_precomputed(query: str, top_k: int = 5):
     return results[:top_k]
 
 
+def get_video_list():
+    """Get list of unique videos from segments."""
+    global segments
+
+    # Load data if not already loaded
+    if segments is None:
+        load_data()
+
+    if segments is None:
+        return []
+
+    # Extract unique video information
+    videos = {}
+    for segment in segments:
+        video_filename = segment["video_filename"]
+        if video_filename not in videos:
+            videos[video_filename] = {
+                "video_filename": video_filename,
+                "segments_count": 0,
+                "total_duration": 0,
+            }
+
+        videos[video_filename]["segments_count"] += 1
+        videos[video_filename]["total_duration"] = max(
+            videos[video_filename]["total_duration"], segment["end_time"]
+        )
+
+    # Convert to list and add formatted duration
+    video_list = list(videos.values())
+    for video in video_list:
+        video["duration_formatted"] = format_timestamp(video["total_duration"])
+
+    return sorted(video_list, key=lambda x: x["video_filename"])
+
+
 def create_app():
     """Create Flask app."""
     app = Flask(__name__)
@@ -321,18 +443,36 @@ def create_app():
         try:
             data = request.get_json()
             query = data.get("query", "")
+            video_filename = data.get("video_filename")
 
             if not query:
                 return jsonify({"success": False, "error": "Query is required"})
 
-            results = search_with_precomputed(query, top_k=10)
+            results = search_with_precomputed(query, video_filename, top_k=10)
 
             return jsonify(
                 {
                     "success": True,
                     "results": results,
                     "query": query,
+                    "video_filename": video_filename,
                     "total_results": len(results),
+                }
+            )
+
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)})
+
+    @app.route("/videos", methods=["GET"])
+    def videos():
+        try:
+            video_list = get_video_list()
+
+            return jsonify(
+                {
+                    "success": True,
+                    "videos": video_list,
+                    "total_videos": len(video_list),
                 }
             )
 

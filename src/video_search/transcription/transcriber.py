@@ -9,7 +9,7 @@ import sys
 import logging
 import traceback
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any
 import whisper
 import torch
 from tqdm import tqdm

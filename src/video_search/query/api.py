@@ -3,18 +3,11 @@ Flask API for video semantic search.
 Provides web endpoints for searching videos and managing the search index.
 """
 
-import os
-import sys
-import json
-import logging
-from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Optional
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 import traceback
 
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 from src.video_search.utils import Config, setup_logging
 from src.video_search.query.searcher import VideoSearchEngine
 
@@ -343,7 +336,7 @@ class VideoSearchAPI:
         """Run the Flask application."""
         # Use config values or defaults
         host = host or self.config.get("flask.host", "0.0.0.0")
-        port = port or self.config.get("flask.port", 5000)
+        port = port or self.config.get("flask.port", 8080)
         debug = debug if debug is not None else self.config.get("flask.debug", False)
 
         self.logger.info(f"Starting Flask API server on {host}:{port}")
