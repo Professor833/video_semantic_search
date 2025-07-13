@@ -1,0 +1,75 @@
+# Video Search Configuration
+
+# Paths
+paths:
+  videos_dir: "./videos"
+  transcripts_dir: "./data/transcripts"
+  embeddings_dir: "./data/embeddings"
+  index_dir: "./data/index"
+  logs_dir: "./logs"
+
+# Whisper Configuration
+whisper:
+  model_size: "small"  # tiny, base, small, medium, large
+  language: "en"
+  device: "cpu"  # auto, cpu, cuda
+  fp16: false  # Use fp16 for faster inference on GPU
+  temperature: 0.0
+  beam_size: 5
+  best_of: 5
+  patience: 1.0
+  length_penalty: 1.0
+  suppress_tokens: "-1"
+  initial_prompt: "This is a Python programming tutorial video. It may contain technical terms like variables, functions, loops, classes, methods, libraries, modules, and common Python syntax like def, import, class, for, while, if, else, try, except. Code examples may be discussed and explained."
+  condition_on_previous_text: true
+  compression_ratio_threshold: 2.4
+  logprob_threshold: -1.0
+  no_speech_threshold: 0.6
+
+# Sentence Transformer Configuration
+sentence_transformer:
+  # model_name: "all-MiniLM-L6-v2"
+  model_name: "all-mpnet-base-v2"
+  device: "cpu"
+  normalize_embeddings: true # Normalize the embeddings to have unit length
+  batch_size: 8 # Controls how many sentences are encoded at once
+
+# FAISS Configuration
+faiss:
+  index_type: "IndexFlatIP"  # IndexFlatIP, IndexFlatL2, IndexIVFFlat
+  # dimension: 384  # Dimension for all-MiniLM-L6-v2
+  dimension: 768  # Dimension for all-mpnet-base-v2
+  nlist: 100  # Number of clusters for IVF index
+  nprobe: 10  # Number of clusters to search
+
+# Transcript Processing
+transcript:
+  segment_length: 30  # seconds
+  overlap: 5  # seconds overlap between segments
+  min_segment_length: 10  # minimum segment length in seconds
+  max_segment_length: 60  # maximum segment length in seconds
+
+# Query Configuration
+query:
+  top_k: 5  # Number of results to return
+  similarity_threshold: 0.6  # Minimum similarity score (raised from 0.3 for better relevance)
+  context_window: 10  # seconds of context around the found segment
+
+  # Advanced search optimization
+  rerank_enabled: true  # Enable hybrid semantic + lexical re-ranking
+  query_expansion_enabled: true  # Enable query expansion with synonyms
+  semantic_weight: 0.7  # Weight for semantic similarity in hybrid scoring (0.0-1.0)
+  lexical_weight: 0.3   # Weight for lexical similarity in hybrid scoring (0.0-1.0)
+
+# Flask API Configuration
+flask:
+  host: "0.0.0.0"
+  port: 8080
+  debug: false
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_logging: true
+  console_logging: true

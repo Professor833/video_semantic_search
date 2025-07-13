@@ -1,0 +1,35 @@
+# Alternative requirements for Python 3.13 compatibility
+# Core ML and AI libraries
+openai-whisper
+sentence-transformers
+faiss-cpu
+torch
+torchaudio
+transformers
+
+# Web framework and API
+flask
+flask-cors
+
+# Data processing and utilities
+numpy
+pandas
+tqdm
+python-dotenv
+
+# File handling and JSON
+ujson
+pathlib2
+
+# Logging and configuration
+pyyaml
+colorlog
+
+# Audio processing (additional support)
+librosa
+soundfile
+
+# Development and testing
+pytest
+black
+flake8
